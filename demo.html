@@ -1,0 +1,13 @@
+<!-- <script src="https://unpkg.com/osr-emu/dist/osr-emu.dist.min.js"></script> -->
+<script src="./dist/ayva.dist.min.js"></script>
+
+<!-- <div id="emulator" style="height: 300px"></div> -->
+
+<script>
+  // const emulator = new OSREmulator('#emulator');
+  const ayva = new Ayva().defaultConfiguration();
+  // ayva.addOutput(emulator);
+  ayva.addOutput(console.log);
+
+  ayva.move({ to: 0, duration: 2 });
+</script>

@@ -542,7 +542,11 @@ class Ayva {
           // TODO: Move this validation out into a place it can be reused for setValues() method?
           throw new Error(`Invalid value: ${target}`);
         }
-
+        // writeAxisValues 传参数组 [ { axis: 'L0', value: 0.5 } ]
+        // L0就是filename.funscript
+        // axisL0上的所有记录输出为filename.funscript value要*100取整 0.5变成50
+        // R1就是filename.roll.funscript
+        // R2就是filename.pitch.funscript
         this.#writeAxisValues([{
           axis,
           value: target,
@@ -698,12 +702,29 @@ class Ayva {
   }
 
   #writeAxisValues (axisValues) {
+    // Filter out any invalid values.
     const filteredAxisValues = axisValues.filter(({ value }) => this.#isValidAxisValue(value));
+
+    // 没有转化为 tcode 之前就输出到文件
+    // filteredAxisValues = [ { axis: 'L0', value: 0.5 } ]
+    // 遍历 filteredAxisValues
+    // filteredAxisValues.forEach(({ axis, value }) => {
+    //   // 取整
+    //   valueFormat = value * 100;
+    //   console.log('axis', axis, 'value', value * 100);
+    // });
+
+    // Convert the values into TCodes.
     const tcodes = filteredAxisValues.map(({ axis, value }) => this.#tcode(axis, value));
 
-    if (tcodes.length) {
-      this.#write(`${tcodes.join(' ')}\n`);
+    // 获取时间 funscript需要毫秒单位
+    const time = Math.round(this.#timer.now() * 1000);
 
+    if (tcodes.length) {
+      // Write the TCodes to all connected devices.
+      // TODO: Maybe add a newline to the end of the TCodes?
+      this.#write(`${tcodes.join(' ')} ${time}\n`);
+      // Update the axis values.
       filteredAxisValues.forEach(({ axis, value }) => {
         this.#axes[axis].lastValue = this.#axes[axis].value;
         this.#axes[axis].value = value;
@@ -733,7 +754,7 @@ class Ayva {
       const normalizedValue = round(value * 0.9999, 4); // Convert values from range (0, 1) to (0, 0.9999)
       const scaledValue = (max - min) * normalizedValue + min;
 
-      valueText = `${clamp(round(scaledValue * 10000), 0, 9999)}`.padStart(4, '0');
+      valueText = `${clamp(round(scaledValue * 100), 0, 9999)}`.padStart(4, '0');
     }
 
     return `${this.#axes[axis].name}${valueText}`;
