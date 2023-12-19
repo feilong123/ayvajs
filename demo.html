@@ -4,10 +4,66 @@
 <!-- <div id="emulator" style="height: 300px"></div> -->
 
 <script>
-  // const emulator = new OSREmulator('#emulator');
-  const ayva = new Ayva().defaultConfiguration();
+  const config = {
+    name: 'SR6',      // Optional name of the config.
+    defaultAxis: 'L0', // Optional default axis. When an axis is not specified in commands, this axis is used.
+    frequency: 25,     // Optional. The frequency of updates to devices in Hz. The default is 50.
+    axes: [{
+      name: 'L0',
+      type: 'linear',
+      alias: 'stroke',
+    },
+    {
+      name: 'L1',
+      type: 'linear',
+      alias: 'surge',
+    }, {
+      name: 'L2',
+      type: 'linear',
+      alias: 'sway',
+    },
+    {
+      name: 'R0',
+      type: 'rotation',
+      alias: 'twist',
+    },
+    {
+      name: 'R1',
+      type: 'rotation',
+      alias: 'roll',
+    },
+    {
+      name: 'R2',
+      type: 'rotation',
+      alias: 'pitch',
+    }]
+  };
+  
+  const ayva = new Ayva(config);
+
+  //const ayva = new Ayva().defaultConfiguration();
+
+
   // ayva.addOutput(emulator);
+  
   ayva.addOutput(console.log);
 
-  ayva.move({ to: 0, duration: 2 });
+  // ayva.move({ to: 0, duration: 0.2 });
+
+  // Execute an orbit-grind at 24 bpm
+  // ayva.do(new TempestStroke('orbit-grind', 24));
+
+  // ayva.do(new TempestStroke({
+  //  stroke: { from: 0.0, to: 0.3, ecc: 0.3 },
+  //  roll:   { from: 0.1, to: 0.9, phase: 1.0, ecc: -0.3 },
+  //   pitch:  { from: 0.9, to: 0.1, ecc: -0.3 }
+  // }));
+
+  ayva.do(new TempestStroke('orbit-grind', 24));
+
+  setTimeout(function(){
+    ayva.stop()
+  }, 5000)
+
+
 </script>

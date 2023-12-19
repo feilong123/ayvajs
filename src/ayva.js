@@ -13,6 +13,8 @@ class Ayva {
 
   #axes = {};
 
+  #axesData = {}
+
   #frequency = 50; // Hz
 
   #movements = new Set();
@@ -603,10 +605,70 @@ class Ayva {
   /**
    * Writes the specified command out to all connected devices.
    */
-  #write (command) {
-    for (const device of this.#devices) {
-      device.write(command);
-    }
+  #write (axisValues) {
+     // Filter out any invalid values.
+     const filteredAxisValues = axisValues.filter(({ value }) => this.#isValidAxisValue(value));
+
+     // 没有转化为 tcode 之前就输出到文件
+     // filteredAxisValues = [ { axis: 'stroke', value: 0.5 } ]
+     // 遍历 filteredAxisValues
+     // filteredAxisValues.forEach(({ axis, value }) => {
+     //   // 取整
+     //   valueFormat = value * 100;
+     //   console.log('axis', axis, 'value', value * 100);
+     // });
+
+    // 获取时间 funscript需要毫秒单位
+    const time = Math.round(this.#timer.now() * 1000);
+
+    //  funscript action结构为 [{'at': '235', pos: '45'}] 
+    // 多轴则是 通过文件名区分的 
+    const filteredAxisValuesForFunscript = []
+    // 遍历filteredAxisValues的每个对象增加 'at': time, pos: item.value * 100
+    filteredAxisValues.forEach(({ axis, value }) => {
+      const filteredAxisValuesForFunscriptItem = {
+        // axis: axis,
+        at: time,
+        pos: Math.round(value * 100)
+      }
+      filteredAxisValuesForFunscript.push(filteredAxisValuesForFunscriptItem)
+
+      if (this.#axesData[axis] == undefined) {
+        this.#axesData[axis] = []
+      } else {
+        this.#axesData[axis].push(filteredAxisValuesForFunscriptItem)
+      }
+
+    });
+
+
+    
+
+     // Convert the values into TCodes.
+     const tcodes = filteredAxisValues.map(({ axis, value }) => this.#tcode(axis, value));
+    
+     
+ 
+     if (tcodes.length) {
+       // Write the TCodes to all connected devices.
+       // TODO: Maybe add a newline to the end of the TCodes?
+      const command = `${tcodes.join(' ')} ${time}\n`
+      for (const device of this.#devices) {
+        if (device == 'console.log') {
+          device.write(command);
+        } else {
+          // 输出到console.log时直接输出数据
+          device.write(JSON.stringify(this.#axesData))
+        }
+      }
+ 
+       // Update the axis values.
+       filteredAxisValues.forEach(({ axis, value }) => {
+         this.#axes[axis].lastValue = this.#axes[axis].value;
+         this.#axes[axis].value = value;
+       });
+     }
+
   }
 
   async #performMovements (movementId, movements) {
@@ -702,34 +764,7 @@ class Ayva {
   }
 
   #writeAxisValues (axisValues) {
-    // Filter out any invalid values.
-    const filteredAxisValues = axisValues.filter(({ value }) => this.#isValidAxisValue(value));
-
-    // 没有转化为 tcode 之前就输出到文件
-    // filteredAxisValues = [ { axis: 'L0', value: 0.5 } ]
-    // 遍历 filteredAxisValues
-    // filteredAxisValues.forEach(({ axis, value }) => {
-    //   // 取整
-    //   valueFormat = value * 100;
-    //   console.log('axis', axis, 'value', value * 100);
-    // });
-
-    // Convert the values into TCodes.
-    const tcodes = filteredAxisValues.map(({ axis, value }) => this.#tcode(axis, value));
-
-    // 获取时间 funscript需要毫秒单位
-    const time = Math.round(this.#timer.now() * 1000);
-
-    if (tcodes.length) {
-      // Write the TCodes to all connected devices.
-      // TODO: Maybe add a newline to the end of the TCodes?
-      this.#write(`${tcodes.join(' ')} ${time}\n`);
-      // Update the axis values.
-      filteredAxisValues.forEach(({ axis, value }) => {
-        this.#axes[axis].lastValue = this.#axes[axis].value;
-        this.#axes[axis].value = value;
-      });
-    }
+    this.#write(axisValues)
   }
 
   #isValidAxisValue (value) {
