@@ -1,5 +1,5 @@
 <!-- <script src="https://unpkg.com/osr-emu/dist/osr-emu.dist.min.js"></script> -->
-<script src="./dist/ayva.dist.min.js"></script>
+<script src="../../dist/ayva.dist.min.js"></script>
 
 <!-- <div id="emulator" style="height: 300px"></div> -->
 
@@ -7,7 +7,7 @@
   const config = {
     name: 'SR6',      // Optional name of the config.
     defaultAxis: 'L0', // Optional default axis. When an axis is not specified in commands, this axis is used.
-    frequency: 25,     // Optional. The frequency of updates to devices in Hz. The default is 50.
+    frequency: 5,     // Optional. The frequency of updates to devices in Hz. The default is 50.
     axes: [{
       name: 'L0',
       type: 'linear',
@@ -63,7 +63,7 @@
 
   setTimeout(function(){
     ayva.stop()
-  }, 5000)
+  }, 10000)
 
 
 </script>
