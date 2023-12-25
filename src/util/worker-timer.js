@@ -57,9 +57,13 @@ class WorkerTimer {
    * @returns - the current time in seconds.
    */
   now () {
+    // performance.now() 返回的示例： 1234.567 是毫秒
     return performance.now() / 1000;
   }
 
+  nowMs () {
+    return performance.now();
+  }
   /**
    * Convert a function into a Blob, then generate an object URL from that blob to
    * be used for a Web Worker.

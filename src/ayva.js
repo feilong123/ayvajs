@@ -29,6 +29,12 @@ class Ayva {
 
   #timer;
 
+  #executionStartTime;
+
+  #executionEndTime;
+
+  #totalExecutionTime;
+
   #sleepResolves = new Set();
 
   #readyResolves = new Set();
@@ -106,6 +112,10 @@ class Ayva {
 
         now () {
           return performance.now() / 1000;
+        },
+
+        nowMs () {
+          return performance.now();
         },
       };
     } else {
@@ -201,6 +211,9 @@ class Ayva {
    */
 
   move (...movements) {
+    // 记录 move 开始时间
+    this.#executionStartTime = this.#timer.nowMs;
+
     if (!this.#devices || !this.#devices.length) {
       throw new Error('No output devices have been added.');
     }
@@ -452,7 +465,6 @@ class Ayva {
     const resultDevices = devices.map((device) => {
       const isWritable = device && device.write && device.write instanceof Function;
       const isFunction = device instanceof Function;
-
       if (!isWritable && !isFunction) {
         throw new Error(`Invalid device: ${device}`);
       }
@@ -498,7 +510,6 @@ class Ayva {
       // This move must have been cancelled.
       return false;
     }
-
     return this.#performMovements(movementId, movements).finally(() => {
       this.#movements.delete(movementId);
       this.#checkNotifyReady();
@@ -606,69 +617,80 @@ class Ayva {
    * Writes the specified command out to all connected devices.
    */
   #write (axisValues) {
-     // Filter out any invalid values.
-     const filteredAxisValues = axisValues.filter(({ value }) => this.#isValidAxisValue(value));
+    // Filter out any invalid values.
+    const filteredAxisValues = axisValues.filter(({ value }) => this.#isValidAxisValue(value));
 
-     // 没有转化为 tcode 之前就输出到文件
-     // filteredAxisValues = [ { axis: 'stroke', value: 0.5 } ]
-     // 遍历 filteredAxisValues
-     // filteredAxisValues.forEach(({ axis, value }) => {
-     //   // 取整
-     //   valueFormat = value * 100;
-     //   console.log('axis', axis, 'value', value * 100);
-     // });
+    // 没有转化为 tcode 之前就输出到文件
+    // filteredAxisValues = [ { axis: 'stroke', value: 0.5 } ]
+    // 遍历 filteredAxisValues
+    // filteredAxisValues.forEach(({ axis, value }) => {
+    //   // 取整
+    //   valueFormat = value * 100;
+    //   console.log('axis', axis, 'value', value * 100);
+    // });
 
-    // 获取时间 funscript需要毫秒单位
-    const time = Math.round(this.#timer.now() * 1000);
+    //  funscript action结构为 [{'at': '235', pos: '45'}]
+    // 多轴则是 通过文件名区分的
+    const filteredAxisValuesForFunscript = [];
 
-    //  funscript action结构为 [{'at': '235', pos: '45'}] 
-    // 多轴则是 通过文件名区分的 
-    const filteredAxisValuesForFunscript = []
+    let time = 0;
+    let timeOld = 0;
+
     // 遍历filteredAxisValues的每个对象增加 'at': time, pos: item.value * 100
     filteredAxisValues.forEach(({ axis, value }) => {
+      // 初始化为数组
+      if (this.#axesData[axis] == undefined) {
+        this.#axesData[axis] = [];
+      }
+
+      // 获取时间 funscript需要毫秒单位 很可能是这里带来的问题 随着数据的增加 误差会变大
+      // nowMs 返回的是页面加载到现在的毫秒数 代码执行不是瞬间完成的 所以这里的时间会有误差
+      // 但是这个误差是固定的 所以可以通过计算误差来修正
+      // 计算代码执行的时间
+      // 忽略小于1ms的误差
+      // 每个点生成耗费0.095ms
+      // if (this.#totalExecutionTime < 1) {
+      //   time = Math.round(this.#timer.nowMs());
+      // } else {
+      //   time = Math.round(this.#timer.nowMs() - this.#totalExecutionTime);
+      // }
+      time = Math.round(this.#timer.nowMs() - 0.7 * this.#axesData[axis].length);
+      timeOld = Math.round(this.#timer.nowMs());
+
       const filteredAxisValuesForFunscriptItem = {
         // axis: axis,
         at: time,
-        pos: Math.round(value * 100)
-      }
-      filteredAxisValuesForFunscript.push(filteredAxisValuesForFunscriptItem)
+        // totalExecutionTime: this.#totalExecutionTime,
+        // executionStartTime: this.#executionStartTime,
+        // executionEndTime: this.#executionEndTime,
+        length: this.#axesData[axis].length,
+        timeOld: timeOld,
+        pos: Math.floor(value * 100),
+      };
 
-      if (this.#axesData[axis] == undefined) {
-        this.#axesData[axis] = []
-      } else {
-        this.#axesData[axis].push(filteredAxisValuesForFunscriptItem)
-      }
-
+      filteredAxisValuesForFunscript.push(filteredAxisValuesForFunscriptItem);
+      this.#axesData[axis].push(filteredAxisValuesForFunscriptItem);
     });
-
-
-    
-
-     // Convert the values into TCodes.
-     const tcodes = filteredAxisValues.map(({ axis, value }) => this.#tcode(axis, value));
-    
-     
- 
-     if (tcodes.length) {
-       // Write the TCodes to all connected devices.
-       // TODO: Maybe add a newline to the end of the TCodes?
-      const command = `${tcodes.join(' ')} ${time}\n`
+    // Convert the values into TCodes.
+    const tcodes = filteredAxisValues.map(({ axis, value }) => this.#tcode(axis, value));
+    if (tcodes.length) {
+      // Write the TCodes to all connected devices.
+      // TODO: Maybe add a newline to the end of the TCodes?
+      const command = `${tcodes.join(' ')} ${time}\n`;
       for (const device of this.#devices) {
         if (device == 'console.log') {
           device.write(command);
         } else {
           // 输出到console.log时直接输出数据
-          device.write(JSON.stringify(this.#axesData))
+          device.write(JSON.stringify(this.#axesData));
         }
       }
- 
-       // Update the axis values.
-       filteredAxisValues.forEach(({ axis, value }) => {
-         this.#axes[axis].lastValue = this.#axes[axis].value;
-         this.#axes[axis].value = value;
-       });
-     }
-
+      // Update the axis values.
+      filteredAxisValues.forEach(({ axis, value }) => {
+        this.#axes[axis].lastValue = this.#axes[axis].value;
+        this.#axes[axis].value = value;
+      });
+    }
   }
 
   async #performMovements (movementId, movements) {
@@ -698,7 +720,10 @@ class Ayva {
       // Always sleep at least a tick even when all providers are immediate.
       await this.sleep(this.#period);
     }
-
+    // 记录结束时间 然后计算运行耗费时间
+    this.#executionEndTime = this.#timer.nowMs;
+    const executionTime = this.#executionEndTime - this.#executionStartTime;
+    this.#totalExecutionTime += executionTime;
     return true;
   }
 
