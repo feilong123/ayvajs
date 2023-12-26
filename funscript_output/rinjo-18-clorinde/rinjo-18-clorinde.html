@@ -1,0 +1,144 @@
+<!-- <script src="https://unpkg.com/osr-emu/dist/osr-emu.dist.min.js"></script> -->
+<script src="../../dist/ayva.dist.min.js"></script>
+
+<!-- <div id="emulator" style="height: 300px"></div> -->
+
+<script>
+  const config = {
+    name: 'SR6',      // Optional name of the config.
+    defaultAxis: 'L0', // Optional default axis. When an axis is not specified in commands, this axis is used.
+    frequency: 20,     // Optional. The frequency of updates to devices in Hz. The default is 50.
+    axes: [{
+      name: 'L0',
+      type: 'linear',
+      alias: 'stroke',
+    },
+    {
+      name: 'L1',
+      type: 'linear',
+      alias: 'surge',
+    }, {
+      name: 'L2',
+      type: 'linear',
+      alias: 'sway',
+    },
+    {
+      name: 'R0',
+      type: 'rotation',
+      alias: 'twist',
+    },
+    {
+      name: 'R1',
+      type: 'rotation',
+      alias: 'roll',
+    },
+    {
+      name: 'R2',
+      type: 'rotation',
+      alias: 'pitch',
+    }]
+  };
+  
+  const ayva = new Ayva(config);
+
+  //const ayva = new Ayva().defaultConfiguration();
+
+
+  // ayva.addOutput(emulator);
+  
+  ayva.addOutput(console.log);
+
+  // ayva.move({ to: 0, duration: 0.2 });
+
+  // Execute an orbit-grind at 24 bpm
+  // 
+
+  // 输入一个stroke 生成其他多轴的数据
+  const stroke = [{"at":0,"pos":50},{"at":200,"pos":10},{"at":567,"pos":60},{"at":917,"pos":10},{"at":1300,"pos":60},{"at":1700,"pos":10},{"at":2067,"pos":60},{"at":2417,"pos":10},{"at":2817,"pos":60},{"at":3167,"pos":10},{"at":3500,"pos":60},{"at":3883,"pos":10},{"at":4233,"pos":60},{"at":4633,"pos":10},{"at":5000,"pos":60},{"at":5367,"pos":10},{"at":5750,"pos":60},{"at":6100,"pos":10},{"at":6500,"pos":60},{"at":6833,"pos":10},{"at":7217,"pos":60},{"at":7617,"pos":10},{"at":7983,"pos":60},{"at":8367,"pos":10},{"at":8733,"pos":60},{"at":9100,"pos":10},{"at":9467,"pos":60},{"at":9800,"pos":10},{"at":10200,"pos":60},{"at":10567,"pos":10},{"at":10900,"pos":60},{"at":11333,"pos":10},{"at":11667,"pos":60},{"at":12033,"pos":10},{"at":12367,"pos":60},{"at":12767,"pos":7},{"at":13150,"pos":60},{"at":13483,"pos":10},{"at":13900,"pos":60},{"at":14250,"pos":10},{"at":14650,"pos":60},{"at":14917,"pos":10},{"at":15350,"pos":60},{"at":15767,"pos":10}]
+
+  // 生成roll轴的数据
+  const other = []
+  stroke.forEach((item, index) => {
+    // 第一个点保持一致
+    if (index === 0) {
+      other.push({
+        "at": item.at,
+        "pos": item.pos
+      })
+    } else {
+      // 判断当前点的pos是否大于前一个点
+      if (item.pos > stroke[index - 1].pos) {
+        // 如果大于前一个点 则是高点
+        other.push({
+          "at": Math.ceil((item.at - stroke[index - 1].at) / 2 + stroke[index - 1].at),
+          "pos": 70
+        })
+      } else {
+        // 如果小于前一个点 则是低点
+        other.push({
+          "at": Math.ceil((item.at - stroke[index - 1].at) / 2 + stroke[index - 1].at),
+          "pos": 30
+        })
+      }
+    }
+  })
+
+  console.log('other轴数据',JSON.stringify(other))
+
+  
+  // 默认第一个点是0.5即可
+
+  function strokeMove() {
+    // 遍历stroke数组 根据L0数据进行运动 变相的插值了
+    stroke.forEach((item, index) => {
+      // console.log(item, index)
+      let durationStroke = 0
+      if (index > 0) {
+        durationStroke = stroke[index].at - stroke[index - 1].at
+        durationStroke = durationStroke / 1000
+        console.log(durationStroke)
+      }
+
+      if (index === 1) {
+        ayva.move(
+          { axis: "stroke", from: stroke[0].pos / 100, to: stroke[index].pos / 100, duration: durationStroke}
+        )
+      }
+      if (index > 1) {
+        ayva.move({  axis: "stroke", to: stroke[index].pos / 100, duration: durationStroke})
+      }
+    })
+  }
+
+  function otherMove() {
+    // 遍历pick轴数据
+    other.forEach((item, index) => {
+      // console.log(item, index)
+      let durationOther = 0
+      if (index > 0) {
+        durationOther = other[index].at - other[index - 1].at
+        durationOther = durationOther / 1000
+        console.log(durationOther)
+      }
+
+      if (index === 1) {
+        ayva.move(
+          { axis: "roll", from: other[0].pos / 100, to: other[index].pos / 100, duration: durationOther }
+        )
+      }
+      if (index > 1) {
+        ayva.move({  axis: "roll", to: other[index].pos / 100, duration: durationOther})
+      }
+    })
+  }
+
+  // strokeMove()
+  otherMove()
+
+  
+
+
+  
+
+
+</script>

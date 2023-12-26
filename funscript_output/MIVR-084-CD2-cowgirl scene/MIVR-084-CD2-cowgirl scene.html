@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <script src="../../dist/ayva.dist.min.js"></script>
+<script>
+  const config = {
+    name: 'SR6',      // Optional name of the config.
+    defaultAxis: 'L0', // Optional default axis. When an axis is not specified in commands, this axis is used.
+    frequency: 15,     // Optional. The frequency of updates to devices in Hz. The default is 50.
+    axes: [{
+      name: 'L0',
+      type: 'linear',
+      alias: 'stroke',
+    },
+    {
+      name: 'L1',
+      type: 'linear',
+      alias: 'surge',
+    }, {
+      name: 'L2',
+      type: 'linear',
+      alias: 'sway',
+    },
+    {
+      name: 'R0',
+      type: 'rotation',
+      alias: 'twist',
+    },
+    {
+      name: 'R1',
+      type: 'rotation',
+      alias: 'roll',
+    },
+    {
+      name: 'R2',
+      type: 'rotation',
+      alias: 'pitch',
+    }]
+  };
+
+  const ayva = new Ayva(config);
+
+  //const ayva = new Ayva().defaultConfiguration();
+
+
+  // ayva.addOutput(emulator);
+
+  ayva.addOutput(console.log);
+
+  // ayva.move({ to: 0, duration: 0.2 });
+
+  // Execute an orbit-grind at 24 bpm
+  // 
+
+  // 输入一个stroke 生成其他多轴的数据 控制相位和偏心率
+  // 这意味着bpm是变动的可能是数组
+  const stroke = [{"at":0,"pos":50},{"at":300,"pos":11},{"at":808,"pos":70},{"at":1568,"pos":10},{"at":2436,"pos":70},{"at":2953,"pos":10},{"at":3437,"pos":70},{"at":3937,"pos":10},{"at":4437,"pos":70},{"at":4872,"pos":10},{"at":5272,"pos":70},{"at":5622,"pos":10},{"at":6056,"pos":70},{"at":6423,"pos":10},{"at":6797,"pos":70},{"at":7241,"pos":10},{"at":7674,"pos":70},{"at":8041,"pos":10},{"at":8375,"pos":70},{"at":8692,"pos":10},{"at":9009,"pos":70},{"at":9343,"pos":10},{"at":9660,"pos":70},{"at":9976,"pos":10},{"at":10294,"pos":70},{"at":10627,"pos":10},{"at":10944,"pos":70},{"at":11278,"pos":10},{"at":11562,"pos":70},{"at":11845,"pos":10},{"at":12146,"pos":70},{"at":12429,"pos":10},{"at":12729,"pos":70},{"at":12996,"pos":10},{"at":13296,"pos":70},{"at":13564,"pos":10},{"at":13864,"pos":70},{"at":14148,"pos":10},{"at":14431,"pos":70},{"at":14698,"pos":10},{"at":14981,"pos":70},{"at":15265,"pos":10},{"at":15565,"pos":70},{"at":15833,"pos":10},{"at":16133,"pos":70},{"at":16383,"pos":10},{"at":16683,"pos":70},{"at":16950,"pos":10},{"at":17234,"pos":70},{"at":17484,"pos":10},{"at":17768,"pos":70},{"at":18035,"pos":10},{"at":18318,"pos":70},{"at":18585,"pos":10},{"at":18869,"pos":70},{"at":19119,"pos":10},{"at":19419,"pos":70},{"at":19686,"pos":10},{"at":19970,"pos":70},{"at":20254,"pos":10},{"at":20554,"pos":70},{"at":20787,"pos":10},{"at":21071,"pos":70},{"at":21321,"pos":10},{"at":21605,"pos":70},{"at":21872,"pos":10},{"at":22156,"pos":70},{"at":22389,"pos":10},{"at":22673,"pos":70},{"at":22906,"pos":10},{"at":23156,"pos":70},{"at":23357,"pos":10},{"at":23624,"pos":60},{"at":23841,"pos":10},{"at":24074,"pos":58},{"at":24308,"pos":10},{"at":24575,"pos":60},{"at":24775,"pos":10},{"at":25025,"pos":60},{"at":25242,"pos":10},{"at":25475,"pos":60},{"at":25709,"pos":10},{"at":25943,"pos":60},{"at":26159,"pos":10},{"at":26410,"pos":60},{"at":26627,"pos":10},{"at":26894,"pos":60},{"at":27094,"pos":10},{"at":27361,"pos":60},{"at":27594,"pos":10},{"at":27844,"pos":60},{"at":28045,"pos":10},{"at":28312,"pos":60},{"at":28545,"pos":10},{"at":28779,"pos":60},{"at":29068,"pos":10}]
+   // 生成pitch轴的数据 用于picth的前滚和后滚
+  // 前移一个相位 生成新的时间序列
+  const pitch = []
+
+  // 'back-thrust-down': {
+  //   L0: {
+  //     from: 0,
+  //     to: 0.7,
+  //     phase: 0,
+  //     ecc: 0.5,
+  //   },
+  //   R2: {
+  //     from: 0.4,
+  //     to: 1,
+  //     phase: 0,
+  //     ecc: 0.5,
+  //   },
+  // },
+  stroke.forEach((item, index) => {
+    // 第一个点保持一致
+    if (index === 0) {
+      pitch.push({
+        "at": item.at,
+        "pos": item.pos
+      })
+    } else {
+      // 判断当前点的pos是否大于前一个点
+      if (item.pos > stroke[index - 1].pos) {
+        // 如果大于前一个点 则是高点
+        pitch.push({
+          "at": item.at,
+          "pos": 80
+        })
+      } else {
+        // 如果小于前一个点 则是低点
+        pitch.push({
+          "at": item.at,
+          "pos": 40
+        })
+      }
+    }
+  })
+
+  console.log('back-thrust-down俯仰轴数据', JSON.stringify(pitch))
+
+  const records = []
+
+  function calculateBPM(actions) {
+    if (actions.length < 2) {
+      throw new Error("Need at least two actions to calculate BPM");
+    }
+  
+    // Calculate the time difference between the first two actions
+    let timeDifference = actions[1].at - actions[0].at;
+  
+    // Convert time difference from milliseconds to seconds
+    let timeDifferenceInSeconds = timeDifference / 1000;
+  
+    // Calculate BPM: 60 seconds per minute divided by time per beat
+    let BPM = 60 / timeDifferenceInSeconds;
+  
+    return BPM;
+  }
+
+  // 默认第一个点是0.5即可
+  function strokeMove() {
+    // 遍历stroke数组 根据L0数据进行运动 变相的插值了
+    stroke.forEach((item, index) => {
+      // console.log(item, index)
+      let durationStroke = 0
+      let speed = 1
+      if (index > 0) {
+        // 时长
+        durationStroke = stroke[index].at - stroke[index - 1].at
+        durationStroke = durationStroke / 1000
+        console.log(durationStroke)
+
+        // 计算速度
+        const distance = (stroke[index].pos - stroke[index - 1].pos) / 100
+        const absoluteDistance = Math.abs(distance);
+        // 这里可能存在精度损失 0.4 / 0.333 =  
+        speed = absoluteDistance / durationStroke
+        speed = parseFloat(speed.toFixed(2))
+        console.info('速度', speed)
+
+        records.push({
+          // "from": stroke[index - 1].pos / 100,
+          "to": stroke[index].pos / 100,
+        })
+
+      }
+
+      if (index === 1) {
+        ayva.move(
+          { axis: "stroke", to: stroke[index].pos / 100, duration: durationStroke }
+        )
+      }
+
+      if (index > 1 && index < stroke.length - 1) {
+        // Calculate the time difference between the first two actions
+        let timeDifference = stroke[index].at - stroke[index - 1].at;
+      
+        // Convert time difference from milliseconds to seconds
+        let timeDifferenceInSeconds = timeDifference / 1000;
+      
+        // Calculate BPM: 60 seconds per minute divided by time per beat
+        let BPM = 60 / timeDifferenceInSeconds;
+
+        ayva.move({ axis: "stroke", to: stroke[index].pos / 100, duration: durationStroke, value: Ayva.ramp(({ x }) => x) })
+        
+
+      }
+      // 最后一个移动时
+      if (index === stroke.length - 1) {
+        ayva.move({ axis: "stroke", to: stroke[index].pos / 100, speed: speed }).then(() => {
+          console.log('records', JSON.stringify(records))
+        })
+      }
+
+    })
+  }
+
+  function pitchMove() {
+    // 遍历pick轴数据
+    pitch.forEach((item, index) => {
+      // console.log(item, index)
+      let durationPitch = 0
+      if (index > 0) {
+        durationPitch = pitch[index].at - pitch[index - 1].at
+        durationPitch = durationPitch / 1000
+        console.log(durationPitch)
+      }
+
+      if (index === 1) {
+        ayva.move(
+          { axis: "pitch", from: pitch[0].pos / 100, to: pitch[index].pos / 100, duration: durationPitch }
+        )
+      }
+      if (index > 1) {
+        const axis = "pitch"
+        const myRamp = (parameters) => {
+          // const fn = ({ x }) => (-Math.cos(Math.PI * x) / 2) + 0.5;
+          // const smoothstep = (x) => x * x * (3 - 2 * x);
+          const exponent = 0.8; // Adjust this value to make the top less flat
+
+          const fn = ({ x }) => {
+            const ecc = 0.5;
+            // const y = smoothstep(x)
+            const y = Math.pow(x, exponent);
+            const result = (-Math.cos(Math.PI * y) / 2) + 0.5;
+            return result
+          };
+          return Ayva.ramp(fn)(parameters);
+        };
+        ayva.move({ axis: "pitch", to: pitch[index].pos / 100, duration: durationPitch })
+      }
+    })
+  }
+
+  strokeMove()
+  // pitchMove()
+
+</script>
+</body>
+</html>
